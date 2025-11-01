@@ -1,0 +1,5 @@
+//lancer l'environnement virtuel.
+source venv/Scripts/activate 
+
+//couper l'environnnement virtuel
+deactivate
