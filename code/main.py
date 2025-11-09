@@ -1,6 +1,7 @@
 import musicbrainzngs
 import requests
 import json
+import pandas as pd
 
 # 1️⃣ Configurer MusicBrainz
 musicbrainzngs.set_useragent("anamaisin", "0.1.0", "anais.maisin@gmail.com")
@@ -12,7 +13,7 @@ try:
     print(f"Titre : {recording['title']}")
     print(f"MBID du morceau : {recording['id']}")
 except musicbrainzngs.NetworkError as e:
-    print(" Erreur réseau :", e)
+    print("❌ Erreur réseau :", e)
     exit()
 
 # 3️⃣ Requête vers AcousticBrainz (high-level)
@@ -24,15 +25,39 @@ response = requests.get(url)
 print("\n--- Résultat AcousticBrainz (high-level) ---")
 if response.status_code == 200:
     data = response.json()
+    features = data.get("highlevel", {})
 
-    # Quelques features intéressantes
-    print("Mood :", data["highlevel"]["mood_acoustic"]["value"])
-    print("Danceability :", data["highlevel"]["danceability"]["value"])
-    print("Gender voix :", data["highlevel"]["gender"]["value"])
-    print("Style global :", data["highlevel"]["genre_dortmund"]["value"])
-    print("Energy :", data["highlevel"]["mood_happy"]["value"])
+    # 4️⃣ Extraire les features sous forme de dictionnaire
+    feature_values = {
+        "artist": "Freddie Mercury",
+        "track_name": recording["title"],
+        "mbid": mbid
+    }
+
+    # Pour chaque feature, on récupère la catégorie (value) et la probabilité (probability)
+    for feature_name, feature_data in features.items():
+        if isinstance(feature_data, dict):
+            # Ajoute la valeur catégorielle
+            feature_values[feature_name] = feature_data.get("value")
+
+            # Ajoute la probabilité numérique si elle existe
+            if "probability" in feature_data:
+                feature_values[f"{feature_name}_prob"] = feature_data["probability"]
+        else:
+            feature_values[feature_name] = None
+            feature_values[f"{feature_name}_prob"] = None
+
+    # 5️⃣ Transformer en DataFrame
+    df = pd.DataFrame([feature_values])
+
+    print("\n🎶 Caractéristiques extraites sous forme de tableau :")
+    print(df.T)  # affichage vertical pour plus de lisibilité
+
+    # 6️⃣ Sauvegarde optionnelle
+    df.to_csv("freddie_mercury_features.csv", index=False, encoding="utf-8")
+    print("\n💾 Fichier sauvegardé : freddie_mercury_features.csv")
 
 else:
-    print("Erreur :", response.status_code, "- Données non disponibles pour ce morceau.")
+    print("❌ Erreur :", response.status_code, "- Données non disponibles pour ce morceau.")
 
-print(json.dumps(data["highlevel"], indent=4))
+
